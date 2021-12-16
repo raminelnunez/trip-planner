@@ -18,6 +18,17 @@ navigator.geolocation.getCurrentPosition((position) => {
   coords.longitude = position.coords.longitude;
 });
 
+const html = {
+  originForm: document.getElementsByClassName('origin-form')[0],
+  originInput: document.getElementsByName('input')[0],
+  originsContainer: document.getElementsByClassName('origins')[0],
+  destinationForm: document.getElementsByClassName('destination-form')[0],
+  destinationInput: document.getElementsByName('input')[1],
+  destinationContainer: document.getElementsByClassName('destinations')[0],
+  planTrip: document.getElementsByClassName('plan-trip')[0],
+  myTrip: document.getElementsByClassName('my-trip')[0]
+}
+
 const info = {
   origins: [],
   destinations: [],
@@ -133,3 +144,13 @@ async function parseRoute(data) {
   }
   console.log(routes)
 }
+
+function handleInput(e, calledFunction) {
+  e.preventDefault();
+  calledFunction;
+  render();
+} 
+
+html.originForm.addEventListener('submit', (e) => handleInput(e, search(html.originInput.value, 'origin')))
+html.destinationForm.addEventListener('submit', (e) => handleInput(e, search(html.destinationInput.value, 'destination')))
+html.planTrip.addEventListener('click', (e) => planTrip())
