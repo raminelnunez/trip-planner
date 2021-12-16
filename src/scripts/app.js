@@ -23,6 +23,11 @@ const info = {
   destinations: [],
 }
 
+const ui = {
+  origin: undefined,
+  destination: undefined,
+}
+
 async function getGeocode (qString) {
   const targetURL =`${mapBox}${qString}.json?types=address&access_token=${token}&proximity=${coords.longitude},${coords.latitude}&types=poi`
   const response = await fetch(targetURL);
@@ -90,12 +95,12 @@ async function getKey(coords) {
       return data.locations[0].address.key;
     }
   } else {
-    return 'some error';
+    return 'there was some error';
   }
 }
 
 async function getRoute(origKey, destKey) {
-  const targetURL = `${winnipegTransit}trip-planner.json?api-key=${apiKey}&origin=addresses/${origKey}&destination=addresses/${destKey}`
+  const targetURL = `${winnipegTransit}trip-planner.json?api-key=${apiKey}&origin=addresses/${origKey}&destination=addresses/${destKey}&time=12:00`
   const response = await fetch(targetURL);
   const data = await response.json();
   parseRoute(data);
