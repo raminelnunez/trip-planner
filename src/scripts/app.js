@@ -4,8 +4,8 @@ const winnipegTransit = "https://api.winnipegtransit.com/v3/";
 const mapBox = "https://api.mapbox.com/geocoding/v5/mapbox.places/";
 
 const coords = {
-  latitude: 0,
-  longitude: 0,
+  latitude: undefined,
+  longitude: undefined,
 
   get log() {
     console.log(`latitde, longitude`)
@@ -13,10 +13,13 @@ const coords = {
   }
 };
 
-navigator.geolocation.getCurrentPosition((position) => {
-  coords.latitude = position.coords.latitude;
-  coords.longitude = position.coords.longitude;
-});
+function getLocation() {
+  navigator.geolocation.getCurrentPosition((position) => {
+    coords.latitude = position.coords.latitude;
+    coords.longitude = position.coords.longitude;
+  });
+}
+
 
 const html = {
   originForm: document.getElementsByClassName('origin-form')[0],
@@ -38,9 +41,15 @@ const selected = {
   origin: undefined,
   destination: undefined,
 }
+
+let errors = 0;
+
 let routes = [];
 
 async function getGeocode (qString) {
+  if (coords.longitude === undefined || coords.latitude === undefined) {
+    error(200);
+  }
   const targetURL =`${mapBox}${qString}.json?types=address&access_token=${token}&proximity=${coords.longitude},${coords.latitude}&types=poi`
   const response = await fetch(targetURL);
   const data = await response.json();
@@ -59,6 +68,9 @@ async function search(search_text, location) {
     if (itemInfo.includes('Winnipeg') === true) {
       results.push(new Result(name, address, coords, key))
     }
+  }
+  if (results.length === 0) {
+    error(300);
   }
   if (location === 'origin') {
     info.origins = results;
@@ -116,7 +128,7 @@ async function getKey(coords) {
 }
 
 async function getRoute(origKey, destKey) {
-  const targetURL = `${winnipegTransit}trip-planner.json?api-key=${apiKey}&origin=addresses/${origKey}&destination=addresses/${destKey}&time=12:00`
+  const targetURL = `${winnipegTransit}trip-planner.json?api-key=${apiKey}&origin=addresses/${origKey}&destination=addresses/${destKey}`
   const response = await fetch(targetURL);
   const data = await response.json();
   parseRoute(data);
@@ -162,6 +174,9 @@ html.planTrip.addEventListener('click', (e) => planTrip())
 
 async function planTrip() {
   if (selected.origin !== undefined && selected.destination !== undefined) {
+    if (routes.length === 0) {
+      error(404);
+    }
     await getRoute(selected.origin, selected.destination);
     html.myTrip.innerHTML = "";
     for (let segment of routes[0]) {
@@ -173,7 +188,7 @@ async function planTrip() {
       `)
     }
   } else {
-    html.myTrip.innerHTML = "";
+    error(100);
   }
 }
 
@@ -211,7 +226,7 @@ function render(what) {
   }
 
   if (what === 'routes' || what === 'all') {
-    planTrip();
+    html.myTrip.innerHTML = "";
   }
 }
 
@@ -236,3 +251,35 @@ function select(result) {
 }
 
 render('all')
+getLocation()
+
+function error(index) {
+  errors++;
+  if (index === 100) {
+    html.myTrip.insertAdjacentHTML('afterbegin', `
+      <hr>
+      <h3> ERROR #${errors}: Please select both starting place and destination </h1>
+    `);
+  }
+  if (index === 200) {
+    html.myTrip.insertAdjacentHTML('afterbegin', `
+      <hr>
+      <h3> ERROR #${errors}: Please Enable Your Location</h1>
+    `);
+    getLocation();
+  }
+
+  if (index === 300) {
+    html.myTrip.insertAdjacentHTML('afterbegin', `
+      <hr>
+      <h3> ERROR #${errors}: No search results available on that</h1>
+    `);
+  }
+
+  if (index === 404) {
+    html.myTrip.insertAdjacentHTML('afterbegin', `
+      <hr>
+      <h3> ERROR #${errors}: There are no buses running there at this time...</h1>
+    `);
+  }
+}
