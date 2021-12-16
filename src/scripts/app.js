@@ -20,10 +20,10 @@ navigator.geolocation.getCurrentPosition((position) => {
 
 const html = {
   originForm: document.getElementsByClassName('origin-form')[0],
-  originInput: document.getElementsByName('input')[0],
+  originInput: document.getElementsByTagName('input')[0],
   originsContainer: document.getElementsByClassName('origins')[0],
   destinationForm: document.getElementsByClassName('destination-form')[0],
-  destinationInput: document.getElementsByName('input')[1],
+  destinationInput: document.getElementsByTagName('input')[1],
   destinationContainer: document.getElementsByClassName('destinations')[0],
   planTrip: document.getElementsByClassName('plan-trip')[0],
   myTrip: document.getElementsByClassName('my-trip')[0]
@@ -34,10 +34,11 @@ const info = {
   destinations: [],
 }
 
-const ui = {
+const selected = {
   origin: undefined,
   destination: undefined,
 }
+let routes = [];
 
 async function getGeocode (qString) {
   const targetURL =`${mapBox}${qString}.json?types=address&access_token=${token}&proximity=${coords.longitude},${coords.latitude}&types=poi`
@@ -65,6 +66,7 @@ async function search(search_text, location) {
   if (location === 'destination') {
     info.destinations = results;
   }
+  render(location)
 }
 
 class Result {
@@ -79,18 +81,21 @@ class Result {
 class Walk {
   constructor(duration, destination) {
     this.message = `Walk for ${duration} minutes to ${destination[0]}${destination[1]}${destination[2]}${destination[3]}`;
+    this.icon = 'walking';
   }
 }
 
 class Ride {
   constructor (route, duration) {
     this.message = `Ride the ${route} for ${duration} minutes`;
+    this.icon = 'bus';
   }
 }
 
 class Transfer {
   constructor(origin, destination) {
     this.message = `Transfer from stop #${origin[0]} - ${origin[1]} to stop #${destination[0]} - ${destination[1]}`
+    this.icon = 'ticket-alt'
   }
 }
 
@@ -118,7 +123,7 @@ async function getRoute(origKey, destKey) {
 }
 
 async function parseRoute(data) {
-  let routes = []
+  routes = []
   for (let plan of data.plans) {
     let route = [];
     let i = 0
@@ -142,7 +147,7 @@ async function parseRoute(data) {
       routes.push(route)
     } 
   }
-  console.log(routes)
+  return routes;
 }
 
 function handleInput(e, calledFunction) {
@@ -154,3 +159,80 @@ function handleInput(e, calledFunction) {
 html.originForm.addEventListener('submit', (e) => handleInput(e, search(html.originInput.value, 'origin')))
 html.destinationForm.addEventListener('submit', (e) => handleInput(e, search(html.destinationInput.value, 'destination')))
 html.planTrip.addEventListener('click', (e) => planTrip())
+
+async function planTrip() {
+  if (selected.origin !== undefined && selected.destination !== undefined) {
+    await getRoute(selected.origin, selected.destination);
+    html.myTrip.innerHTML = "";
+    for (let segment of routes[0]) {
+      html.myTrip.insertAdjacentHTML('beforeend', `
+      <li>
+        <i class="fas fa-${segment.icon}" aria-hidden="true"></i>
+        ${segment.message}
+      </li>
+      `)
+    }
+  } else {
+    html.myTrip.innerHTML = "";
+  }
+}
+
+function render(what) {
+  if (what === 'origin' || what === 'all') {
+    html.originsContainer.innerHTML = "";
+    for (let place of info.origins) {
+      html.originsContainer.insertAdjacentHTML('beforeend', `
+        <li key="${place.key}" class="origin-result">
+          <div class="name">${place.name}</div>
+          <div>${place.address}</div>
+        </li>
+      `)
+    }
+    let originResults = document.getElementsByClassName('origin-result');
+    for (let result of originResults) {
+      result.addEventListener('click', () => select(result)); //result.setAttribute('class', 'selected'), selected.origin = result.getAttribute('key')
+    }
+  }
+
+  if (what === 'destination' || what === 'all') {
+    html.destinationContainer.innerHTML = "";
+    for (let place of info.destinations) {
+      html.destinationContainer.insertAdjacentHTML('beforeend', `
+        <li key="${place.key}" class="destination-result">
+          <div class="name">${place.name}</div>
+          <div>${place.address}</div>
+        </li>
+      `)
+    }
+    let destinationResults = document.getElementsByClassName('destination-result');
+    for (let result of destinationResults) {
+      result.addEventListener('click', () => select(result));
+    }
+  }
+
+  if (what === 'routes' || what === 'all') {
+    planTrip();
+  }
+}
+
+function select(result) {
+  if (result.getAttribute('class') === 'origin-result') {
+    let selectedOrigins = document.getElementsByClassName('origin-result selected');
+    for (let each of selectedOrigins) {
+      each.classList.remove("selected")
+    }
+    selected.origin = result.getAttribute('key');
+    result.setAttribute('class', 'origin-result selected');
+  }
+
+  if (result.getAttribute('class') === 'destination-result') {
+    let selectedDestinations = document.getElementsByClassName('destination-result selected');
+    for (let each of selectedDestinations) {
+      each.classList.remove("selected")
+    }
+    selected.destination = result.getAttribute('key');
+    result.setAttribute('class', 'destination-result selected');
+  }
+}
+
+render('all')
